@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Black Hole Relativistic Simulation</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <!-- Three.js viewport -->
+  <div id="viewport">
+    <canvas id="gl-canvas"></canvas>
+  </div>
+
+  <!-- Heatmap overlay (2D canvas, pointer-events: none) -->
+  <canvas id="heatmap-canvas"></canvas>
+
+  <!-- Cinematic HUD overlay: Top Left Brand -->
+  <div id="hud-top-left">
+    <div class="hud-brand">
+      <svg class="hud-logo" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="18" fill="none" stroke="#00f2fe" stroke-width="3" />
+        <ellipse cx="50" cy="50" rx="45" ry="10" fill="none" stroke="#00f2fe" stroke-width="2" transform="rotate(-15 50 50)" />
+      </svg>
+      <div class="brand-text">
+        <div class="brand-title">BLACKHOLE SIMULATION</div>
+        <div class="brand-subtitle">Singularity Matrix | <span class="active-text">ACTIVE</span></div>
+      </div>
+    </div>
+    <div class="kernel-status">
+      <span class="kernel-label">RELATIVISTIC KERNEL</span> <span class="kernel-value">| ACTIVE</span>
+      <div class="sync-code">SYNC_LXX_0x3F7</div>
+    </div>
+    <div class="metric-indicator">
+      <span class="metric-dot"></span>
+      <span class="metric-text">METRIC: KERR VACUUM STATE</span>
+    </div>
+  </div>
+
+  <!-- Cinematic HUD overlay: Top Right Stats -->
+  <div id="hud-top-right">
+    <div class="stats-col">
+      <span class="stat-label">FPS</span>
+      <span class="stat-val" id="hud-fps">— HZ</span>
+    </div>
+    <div class="stats-col">
+      <span class="stat-label">QUALITY</span>
+      <span class="stat-val" id="hud-quality">medium LVL</span>
+    </div>
+    <div class="stats-col">
+      <span class="stat-label">HORIZON</span>
+      <span class="stat-val" id="hud-rs">— RS</span>
+    </div>
+    <div class="stats-col">
+      <span class="stat-label">REDSHIFT</span>
+      <span class="stat-val" id="hud-redshift">z= 0.00</span>
+    </div>
+    <div class="stats-col">
+      <span class="stat-label">DILATION</span>
+      <span class="stat-val" id="hud-dilation">1.000 X</span>
+    </div>
+    <button class="pill-btn" id="btn-quantum">QUANTUM EFFECTS</button>
+  </div>
+
+  <!-- Cinematic HUD overlay: Bottom Left Specs & Source Console -->
+  <div id="hud-bottom-left">
+    <!-- Light Source Radar & Telemetry Console -->
+    <div id="source-console" class="glass-panel">
+      <div class="source-console-header">
+        <span class="console-title">SOURCE POSITION CONSOLE</span>
+        <span class="source-lock-tag" id="source-lock-status">● AIMED AT SINGULARITY</span>
+      </div>
+      <div class="source-console-body">
+        <div class="radar-container">
+          <canvas id="source-radar-canvas" width="130" height="130" title="Click or drag to place light source"></canvas>
+          <div class="radar-hint">ORBIT MAP (CLICK/DRAG)</div>
+        </div>
+        <div class="source-telemetry">
+          <div class="telem-row"><span class="telem-lbl">DIST:</span> <span class="telem-val" id="telem-dist">10.0 rs</span></div>
+          <div class="telem-row"><span class="telem-lbl">ORBIT:</span> <span class="telem-val" id="telem-angle">0°</span></div>
+          <div class="telem-row"><span class="telem-lbl">ELEV:</span> <span class="telem-val" id="telem-elev">0.0</span></div>
+          <div class="telem-row"><span class="telem-lbl">XYZ:</span> <span class="telem-val" id="telem-coords">[10.0, 0.0, 0.0]</span></div>
+          <div class="source-presets-grid">
+            <button class="source-preset-btn btn-preset" data-preset="behind" title="Place behind black hole to see Einstein ring">BEHIND BH</button>
+            <button class="source-preset-btn btn-preset" data-preset="disk" title="Place on accretion disk edge">DISK EDGE</button>
+            <button class="source-preset-btn btn-preset" data-preset="polar" title="Place above top pole">NORTH POLE</button>
+            <button class="source-preset-btn btn-preset" data-preset="equator" title="Snap to disk equator">EQUATOR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="pill-btn" id="btn-toggle-specs">SCIENTIFIC SPECIFICATIONS <span class="open-badge" id="specs-badge">OPEN</span></button>
+    <div id="specs-panel" class="specs-drawer glass-panel" style="display: none;">
+      <div class="hud-title">PHYSICS READOUT</div>
+      <div class="hud-grid">
+        <span class="hud-label">SCHWARZSCHILD RADIUS</span><span class="hud-value" id="hud-rs-specs">—</span>
+        <span class="hud-label">PHOTON SPHERE</span>      <span class="hud-value" id="hud-rph">—</span>
+        <span class="hud-label">ESCAPE VELOCITY</span>    <span class="hud-value" id="hud-vesc">1.000 c</span>
+        <span class="hud-label">INTEGRATION STEP</span>   <span class="hud-value" id="hud-dt">—</span>
+        <span class="hud-label">ACTIVE RAYS</span>        <span class="hud-value" id="hud-rays">0</span>
+        <span class="hud-label">FRAME TIME</span>         <span class="hud-value" id="hud-ft">—</span>
+        <span class="hud-label">STATUS</span>             <span class="hud-value" id="hud-status">IDLE</span>
+      </div>
+      <div class="hud-counters">
+        <span class="counter escaped">↑ <span id="cnt-escaped">0</span> ESCAPED</span>
+        <span class="counter absorbed">● <span id="cnt-absorbed">0</span> ABSORBED</span>
+        <span class="counter orbiting">◎ <span id="cnt-orbiting">0</span> ORBITING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side Vertical Toolbar -->
+  <div id="vertical-toolbar">
+    <button class="toolbar-btn active" id="tbtn-camera" title="Camera Settings">
+      <svg class="ticon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm-7 9h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H17l-1.5-2.5h-7L7 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+      <span>CAMERA</span>
+    </button>
+    <button class="toolbar-btn" id="tbtn-settings" title="Simulation Parameters">
+      <svg class="ticon" viewBox="0 0 24 24"><path fill="currentColor" d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+      <span>SETTINGS</span>
+    </button>
+    <button class="toolbar-btn" id="tbtn-simulation" title="Ray Simulation">
+      <svg class="ticon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+      <span>SIMULATION</span>
+    </button>
+    <button class="toolbar-btn" id="tbtn-help" title="Instructions & Guide">
+      <svg class="ticon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+      <span>HELP</span>
+    </button>
+  </div>
+
+  <!-- Panel: Camera -->
+  <div id="panel-camera" class="drawer-panel glass-panel active">
+    <div class="panel-title">Camera & Light Source</div>
+    
+    <div class="section-label">Light Source Controller</div>
+    <div class="control-row">
+      <label>Source Dist (rs)</label>
+      <input type="range" id="ctrl-dist" min="2" max="35" step="0.5" value="10" />
+      <span class="ctrl-val" id="val-dist">10</span>
+    </div>
+    <div class="control-row">
+      <label>Orbit Angle °</label>
+      <input type="range" id="ctrl-yaw" min="-180" max="180" step="1" value="0" />
+      <span class="ctrl-val" id="val-yaw">0</span>
+    </div>
+    <div class="control-row">
+      <label>Elevation °</label>
+      <input type="range" id="ctrl-pitch" min="-85" max="85" step="1" value="0" />
+      <span class="ctrl-val" id="val-pitch">0</span>
+    </div>
+    <div class="control-row">
+      <label>Face Singularity</label>
+      <input type="checkbox" id="ctrl-autoface" checked />
+    </div>
+    <div class="control-row">
+      <label>Lock 3D Drag</label>
+      <input type="checkbox" id="ctrl-lockdrag" />
+    </div>
+
+    <div class="section-label">Camera Settings</div>
+    <div class="control-row">
+      <label>FOV °</label>
+      <input type="range" id="ctrl-fov" min="10" max="120" step="1" value="60" />
+      <span class="ctrl-val" id="val-fov">60</span>
+    </div>
+    <div class="control-row">
+      <label>Continuous Emit</label>
+      <input type="checkbox" id="ctrl-continuous" />
+    </div>
+    <div class="control-row">
+      <label>Follow Source</label>
+      <input type="checkbox" id="ctrl-follow" />
+    </div>
+    <div class="hint-text">Use sliders or the bottom-left radar console to place the light source. It stays automatically locked facing the singularity!</div>
+  </div>
+
+  <!-- Panel: Settings -->
+  <div id="panel-settings" class="drawer-panel glass-panel">
+    <div class="panel-title">Simulation Parameters</div>
+    <div class="section-label">General Relativity</div>
+    <div class="control-row">
+      <label>Mass M</label>
+      <input type="range" id="ctrl-mass" min="0.1" max="20" step="0.1" value="1.0" />
+      <span class="ctrl-val" id="val-mass">1.0</span>
+    </div>
+    <div class="control-row">
+      <label>Time Step dt</label>
+      <input type="range" id="ctrl-dt" min="0.001" max="0.2" step="0.001" value="0.05" />
+      <span class="ctrl-val" id="val-dt">0.05</span>
+    </div>
+    <div class="control-row">
+      <label>Max Steps</label>
+      <input type="range" id="ctrl-maxsteps" min="100" max="5000" step="100" value="1000" />
+      <span class="ctrl-val" id="val-maxsteps">1000</span>
+    </div>
+    <div class="control-row">
+      <label>Integrator</label>
+      <select id="ctrl-integrator">
+        <option value="rk4">RK4 (fast)</option>
+        <option value="rk45">RK45 (adaptive)</option>
+      </select>
+    </div>
+    <div class="section-label">Visualization</div>
+    <div class="control-row">
+      <label>Disk Brightness</label>
+      <input type="range" id="ctrl-diskbright" min="0" max="2" step="0.05" value="0.75" />
+      <span class="ctrl-val" id="val-diskbright">0.75</span>
+    </div>
+    <div class="control-row">
+      <label>Show Trails</label>
+      <input type="checkbox" id="ctrl-trails" checked />
+    </div>
+    <div class="control-row">
+      <label>Show Photon Ring</label>
+      <input type="checkbox" id="ctrl-showph" checked />
+    </div>
+    <div class="control-row">
+      <label>Turbulent Noise</label>
+      <input type="checkbox" id="ctrl-hotspots" checked />
+    </div>
+    <div class="control-row">
+      <label>Lensing Heatmap</label>
+      <input type="checkbox" id="ctrl-heatmap" />
+    </div>
+    <div class="control-row">
+      <label>QPO Spectrum</label>
+      <input type="checkbox" id="ctrl-qpo" />
+    </div>
+  </div>
+
+  <!-- Panel: Simulation -->
+  <div id="panel-simulation" class="drawer-panel glass-panel">
+    <div class="panel-title">Ray Emission Settings</div>
+    <div class="control-row">
+      <label>Emit Mode</label>
+      <select id="ctrl-mode">
+        <option value="fan">Fan (2D)</option>
+        <option value="cone">Cone (3D)</option>
+        <option value="grid">Grid (NxN)</option>
+        <option value="single">Single</option>
+        <option value="random">Random</option>
+      </select>
+    </div>
+    <div class="control-row">
+      <label>Ray Count</label>
+      <input type="range" id="ctrl-count" min="1" max="500" step="1" value="30" />
+      <span class="ctrl-val" id="val-count">30</span>
+    </div>
+    <div class="section-label">Ray Visuals</div>
+    <div class="control-row">
+      <label>Brightness</label>
+      <input type="range" id="ctrl-raybright" min="0.5" max="5" step="0.1" value="2.0" />
+      <span class="ctrl-val" id="val-raybright">2.0</span>
+    </div>
+    <div class="control-row">
+      <label>Thickness</label>
+      <input type="range" id="ctrl-raythick" min="1" max="5" step="1" value="2" />
+      <span class="ctrl-val" id="val-raythick">2</span>
+    </div>
+    <div class="control-row">
+      <label>Trail Length</label>
+      <input type="range" id="ctrl-trail-len" min="500" max="6000" step="100" value="4000" />
+      <span class="ctrl-val" id="val-trail-len">4000</span>
+    </div>
+    <div class="section-label">Emitter Source</div>
+    <div class="control-row">
+      <label>Source Size</label>
+      <input type="range" id="ctrl-srcsize" min="0.2" max="3" step="0.1" value="1.0" />
+      <span class="ctrl-val" id="val-srcsize">1.0</span>
+    </div>
+    <div class="control-row">
+      <label>Source Glow</label>
+      <input type="range" id="ctrl-srcglow" min="0" max="3" step="0.1" value="1.0" />
+      <span class="ctrl-val" id="val-srcglow">1.0</span>
+    </div>
+    <div class="btn-row">
+      <button id="btn-emit" class="action-btn btn-primary">EMIT RAYS</button>
+      <button id="btn-reset" class="action-btn btn-danger">✕ RESET</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+      <button id="btn-rec" class="action-btn btn-rec" title="Record simulation to .webm">⏺ REC</button>
+    </div>
+  </div>
+
+  <!-- Panel: Help -->
+  <div id="panel-help" class="drawer-panel glass-panel">
+    <div class="panel-title">Scientific Visualization Guide</div>
+    <div class="help-content">
+      <p>This simulation visualizes the extreme gravitational lensing effects of a Schwarzschild/Kerr black hole surrounded by a thick, glowing accretion disk.</p>
+      
+      <h3>Accretion Disk Lensing</h3>
+      <p>Due to intense gravitational bending, light rays from the portion of the disk behind the black hole are bent around it, making the rear top portion appear above the event horizon, and the rear bottom portion appear below the horizon.</p>
+      
+      <h3>Interaction</h3>
+      <ul>
+        <li><strong>Left-Click & Drag Background:</strong> Orbit camera around the black hole.</li>
+        <li><strong>Scroll Wheel:</strong> Zoom camera in and out.</li>
+        <li><strong>Left-Click & Drag Emitter:</strong> Move the interactive light source.</li>
+        <li><strong>Double-Click:</strong> Reposition the light source on the equatorial orbit.</li>
+        <li><strong>R Key:</strong> Reset camera view.</li>
+      </ul>
+      
+      <h3>HUD Controls</h3>
+      <p>Toggle Settings, Camera parameters, and Ray Simulation modes using the right-side vertical toolbar.</p>
+    </div>
+  </div>
+
+  <!-- QPO Spectrum Panel -->
+  <div id="qpo-panel" class="glass-panel qpo-panel">
+    <div class="panel-title">QPO SPECTRUM</div>
+    <canvas id="qpo-canvas"></canvas>
+  </div>
+
+  <!-- Hidden WebSocket status indicator for JS compatibility -->
+  <div id="ws-indicator" class="ws-dot disconnected" style="display:none;"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Post-processing and HDR Bloom -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  
+  <script src="/static/js/scene.js?v=7"></script>
+  <script src="/static/js/websocket.js"></script>
+  <script src="/static/js/controls.js?v=3"></script>
+  <script src="/static/js/renderer.js"></script>
+  <script src="/static/js/recorder.js"></script>
+  <script src="/static/js/qpo.js"></script>
+  
+  <!-- UI Interactions & Tab Toggles -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      QPO.init();
+
+      // Specifications drawer toggle
+      const specsBtn = document.getElementById('btn-toggle-specs');
+      const specsPanel = document.getElementById('specs-panel');
+      const specsBadge = document.getElementById('specs-badge');
+      specsBtn.addEventListener('click', () => {
+        if (specsPanel.style.display === 'none') {
+          specsPanel.style.display = 'block';
+          specsBadge.textContent = 'CLOSE';
+        } else {
+          specsPanel.style.display = 'none';
+          specsBadge.textContent = 'OPEN';
+        }
+      });
+
+      // Toolbar tab toggles
+      const toolbarButtons = {
+        'tbtn-camera': 'panel-camera',
+        'tbtn-settings': 'panel-settings',
+        'tbtn-simulation': 'panel-simulation',
+        'tbtn-help': 'panel-help'
+      };
+
+      Object.entries(toolbarButtons).forEach(([btnId, panelId]) => {
+        const btn = document.getElementById(btnId);
+        const panel = document.getElementById(panelId);
+
+        btn.addEventListener('click', () => {
+          // Deactivate all
+          Object.keys(toolbarButtons).forEach(bId => {
+            document.getElementById(bId).classList.remove('active');
+          });
+          document.querySelectorAll('.drawer-panel').forEach(p => {
+            p.classList.remove('active');
+          });
+
+          // Activate clicked
+          btn.classList.add('active');
+          panel.classList.add('active');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
